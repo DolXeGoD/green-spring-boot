@@ -45,6 +45,10 @@ public class AuthService {
             throw new ResourceNotFoundException("User not found");
         }
 
+        if(!user.getStatus().equals(UserStatus.ACTIVE)){
+            throw new AuthenticationFailureException("User is not active");
+        }
+
         if(!passwordEncoder.matches(userLoginRequest.getPassword(), user.getPassword())){
             // 실패했으면 401
             throw new AuthenticationFailureException("Wrong password");

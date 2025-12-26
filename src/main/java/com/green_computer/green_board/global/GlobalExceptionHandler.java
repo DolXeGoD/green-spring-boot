@@ -3,6 +3,7 @@ package com.green_computer.green_board.global;
 import com.green_computer.green_board.dto.ApiResponse;
 import com.green_computer.green_board.exceptions.AuthenticationFailureException;
 import com.green_computer.green_board.exceptions.AuthorizationFailureException;
+import com.green_computer.green_board.exceptions.InvalidStateException;
 import com.green_computer.green_board.exceptions.ResourceNotFoundException;
 import io.swagger.v3.oas.annotations.Hidden;
 import lombok.extern.slf4j.Slf4j;
@@ -54,6 +55,12 @@ public class GlobalExceptionHandler {
         }
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiResponse.fail(resultMessage));
+    }
+
+    @ExceptionHandler(InvalidStateException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInvalidState(InvalidStateException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.fail(e.getMessage()));
     }
 
     // Exception (그 외 처리하지 않은 모든 예외들)
