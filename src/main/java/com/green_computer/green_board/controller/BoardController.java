@@ -69,4 +69,10 @@ public class BoardController {
     public ResponseEntity<ApiResponse<List<PostResponse>>> getMyPosts() {
         return ResponseEntity.ok(ApiResponse.ok(boardService.getMyPosts()));
     }
+
+    @PostMapping("/likes/{id}")
+    public ResponseEntity<ApiResponse<Boolean>> toggleLike(@PathVariable int id) {
+        boolean like = boardService.toggleLike(id);
+        return ResponseEntity.ok(ApiResponse.ok(like));
+    }
 }

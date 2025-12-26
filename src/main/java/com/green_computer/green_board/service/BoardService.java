@@ -4,14 +4,17 @@ import com.green_computer.green_board.dto.PostCreateRequest;
 import com.green_computer.green_board.dto.PostResponse;
 import com.green_computer.green_board.dto.PostUpdateRequest;
 import com.green_computer.green_board.entity.Board;
+import com.green_computer.green_board.entity.Like;
 import com.green_computer.green_board.entity.User;
 import com.green_computer.green_board.exceptions.AuthenticationFailureException;
 import com.green_computer.green_board.exceptions.AuthorizationFailureException;
 import com.green_computer.green_board.exceptions.ResourceNotFoundException;
 import com.green_computer.green_board.repository.BoardRepository;
+import com.green_computer.green_board.repository.LikeRepository;
 import com.green_computer.green_board.repository.UserRepository;
 import jakarta.servlet.http.HttpSession;
 import jakarta.transaction.Transactional;
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -22,15 +25,12 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
+@AllArgsConstructor
 @Slf4j
 public class BoardService {
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
-
-    public BoardService(BoardRepository boardRepository, UserRepository userRepository) {
-        this.boardRepository = boardRepository;
-        this.userRepository = userRepository;
-    }
+    private final LikeRepository likeRepository;
 
     public List<PostResponse> getAllBoards(Pageable pageable) {
         List<Board> results = boardRepository.findBoardsByIsDeletedFalse(pageable);
@@ -178,5 +178,27 @@ public class BoardService {
         }
 
         return response;
+    }
+
+    // 이번에 새로 눌렀으면 true, 이번 액션으로 좋아요가 취소됐으면 false
+    @Transactional
+    public boolean toggleLike(int id){
+        User user = userRepository.findByUsername(SecurityContextHolder.getContext().getAuthentication().getName());
+        Board board = boardRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("게시글을 찾을 수 없습니다."));
+
+        Optional<Like> existingLike = likeRepository.findByUserIdAndBoardId(user.getId(), board.getId());
+        if(existingLike.isPresent()) {
+            likeRepository.delete(existingLike.get());
+            board.setLikeCount(board.getLikeCount() - 1);
+            return false;
+        } else {
+            Like like = Like.builder()
+                    .board(board)
+                    .user(user)
+                    .build();
+            likeRepository.save(like);
+            board.setLikeCount(board.getLikeCount() + 1);
+            return true;
+        }
     }
 }

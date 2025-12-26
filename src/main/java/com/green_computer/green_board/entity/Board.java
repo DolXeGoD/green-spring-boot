@@ -37,6 +37,9 @@ public class Board {
     @Column(name = "hits", nullable = false)
     private int hits;
 
+    @Column(name = "like_count", nullable = false)
+    private int likeCount;
+
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "author", nullable = false)
     private User author;
