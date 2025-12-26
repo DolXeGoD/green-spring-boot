@@ -4,6 +4,8 @@ import com.green_computer.green_board.dto.*;
 import com.green_computer.green_board.entity.AccessTokenBlacklist;
 import com.green_computer.green_board.entity.RefreshToken;
 import com.green_computer.green_board.entity.User;
+import com.green_computer.green_board.enums.UserRole;
+import com.green_computer.green_board.enums.UserStatus;
 import com.green_computer.green_board.exceptions.AuthenticationFailureException;
 import com.green_computer.green_board.exceptions.ResourceNotFoundException;
 import com.green_computer.green_board.global.TokenProvider;
@@ -70,6 +72,8 @@ public class AuthService {
         user.setUsername(userRegisterRequest.getUsername());
         user.setPassword(encodedPassword);
         user.setName(userRegisterRequest.getName());
+        user.setRole(UserRole.USER);
+        user.setStatus(UserStatus.ACTIVE);
 
         userRepository.save(user);
     }
