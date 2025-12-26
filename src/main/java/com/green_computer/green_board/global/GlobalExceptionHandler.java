@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.Hidden;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -28,8 +29,11 @@ public class GlobalExceptionHandler {
     }
 
     // AuthorizationFailureException
-    @ExceptionHandler(AuthorizationFailureException.class)
-    public ResponseEntity<ApiResponse<Void>> handleUnauthorized(AuthorizationFailureException e) {
+    @ExceptionHandler({
+            AuthorizationFailureException.class, // 우리 커스텀 권한 거절 exception
+            AuthorizationDeniedException.class // 스프링 시큐리티 권한 거절 exception
+    })
+    public ResponseEntity<ApiResponse<?>> handleUnauthorized(RuntimeException e) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(ApiResponse.fail(e.getMessage()));
     }
@@ -53,10 +57,10 @@ public class GlobalExceptionHandler {
     }
 
     // Exception (그 외 처리하지 않은 모든 예외들)
-//    @ExceptionHandler(Exception.class)
-//    public ResponseEntity<ApiResponse<Void>> handleException(Exception e) {
-//        log.error(e.getMessage(), e);
-//        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-//                .body(ApiResponse.fail(e.getMessage()));
-//    }
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiResponse<Void>> handleException(Exception e) {
+        log.error(e.getMessage(), e);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.fail(e.getMessage()));
+    }
 }
