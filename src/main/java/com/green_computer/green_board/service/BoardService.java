@@ -54,7 +54,7 @@ public class BoardService {
         return response;
     }
 
-    public Board getDetailPost(int id) {
+    public PostResponse getDetailPost(int id) {
 
         Optional<Board> boardOptional = boardRepository.findById(id);
 
@@ -76,14 +76,12 @@ public class BoardService {
         boardRepository.save(board); // 변경된 조회수 데이터를 반영해서 다시 저장
 
         // DTO 만들어서, DTO를 응답해야된다.
-//        PostResponse response = new PostResponse(
-//                board.getId(),
-//                board.getTitle(),
-//                board.getContent(),
-//                writerName
-//        );
-
-        return board;
+        return new PostResponse(
+                board.getId(),
+                board.getTitle(),
+                board.getContent(),
+                writerName
+        );
     }
 
     public int createNewPost(PostCreateRequest request) {
