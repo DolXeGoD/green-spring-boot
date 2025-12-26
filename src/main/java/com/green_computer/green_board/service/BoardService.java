@@ -13,6 +13,7 @@ import com.green_computer.green_board.repository.UserRepository;
 import jakarta.servlet.http.HttpSession;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
@@ -31,9 +32,8 @@ public class BoardService {
         this.userRepository = userRepository;
     }
 
-    public List<PostResponse> getAllBoards() {
-        log.info("-------- get All Boards =======");
-        List<Board> results = boardRepository.findBoardsByIsDeletedFalse();
+    public List<PostResponse> getAllBoards(Pageable pageable) {
+        List<Board> results = boardRepository.findBoardsByIsDeletedFalse(pageable);
 
         List<PostResponse> response = new ArrayList<>();
 

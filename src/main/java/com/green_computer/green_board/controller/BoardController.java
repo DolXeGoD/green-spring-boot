@@ -8,6 +8,7 @@ import com.green_computer.green_board.entity.Board;
 import com.green_computer.green_board.service.BoardService;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -27,8 +28,8 @@ public class BoardController {
 
     // 1. 모든 게시글을, 작성 최신순으로 조회.
     @GetMapping
-    public ResponseEntity<ApiResponse<List<PostResponse>>> getAllBoards() {
-        List<PostResponse> results = boardService.getAllBoards();
+    public ResponseEntity<ApiResponse<List<PostResponse>>> getAllBoards(Pageable pageable) {
+        List<PostResponse> results = boardService.getAllBoards(pageable);
         return ResponseEntity.ok(ApiResponse.ok(results)); // 200 OK with 글 데이터들
     }
 
