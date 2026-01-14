@@ -28,7 +28,7 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
-    @Column(name = "username", nullable = false)
+    @Column(name = "username", nullable = false, unique = true)
     private String username;
 
     @Column(name = "password", nullable = false)
@@ -55,5 +55,6 @@ public class User {
     @Column(name = "unblock_datetime", nullable = false)
     private LocalDateTime unblockDateTime;
 
-
+    @Column(name = "email", nullable = false, unique = true)
+    private String email;
 }

@@ -4,6 +4,7 @@ import com.green_computer.green_board.dto.*;
 import com.green_computer.green_board.entity.AccessTokenBlacklist;
 import com.green_computer.green_board.entity.RefreshToken;
 import com.green_computer.green_board.entity.User;
+import com.green_computer.green_board.entity.VerificationCode;
 import com.green_computer.green_board.enums.UserRole;
 import com.green_computer.green_board.enums.UserStatus;
 import com.green_computer.green_board.exceptions.AuthenticationFailureException;
@@ -12,9 +13,11 @@ import com.green_computer.green_board.global.TokenProvider;
 import com.green_computer.green_board.repository.AccessTokenBlacklistRepository;
 import com.green_computer.green_board.repository.RefreshTokenRepository;
 import com.green_computer.green_board.repository.UserRepository;
+import com.green_computer.green_board.repository.VerificationCodeRepository;
 import io.jsonwebtoken.Jwts;
 import jakarta.servlet.http.HttpSession;
 import jakarta.transaction.Transactional;
+import jakarta.validation.constraints.Email;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -25,6 +28,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Date;
 import java.util.Optional;
+import java.util.Random;
 
 @Service
 @Slf4j
@@ -33,8 +37,10 @@ public class AuthService {
     private final AccessTokenBlacklistRepository accessTokenBlacklistRepository;
     private UserRepository userRepository;
     private RefreshTokenRepository refreshTokenRepository;
+    private VerificationCodeRepository verificationCodeRepository;
     private PasswordEncoder passwordEncoder;
     private TokenProvider tokenProvider;
+    private EmailService emailService;
 
     private static final long REFRESH_TOKEN_VALIDITY = 1000 * 60 * 60 * 24;
 
@@ -70,16 +76,32 @@ public class AuthService {
     }
 
     public void register(UserRegisterRequest userRegisterRequest) {
+        // 유저 가입 with PENDING
         String encodedPassword = passwordEncoder.encode(userRegisterRequest.getPassword());
-
         User user = new User();
         user.setUsername(userRegisterRequest.getUsername());
         user.setPassword(encodedPassword);
+        user.setEmail(userRegisterRequest.getEmail());
         user.setName(userRegisterRequest.getName());
         user.setRole(UserRole.USER);
-        user.setStatus(UserStatus.ACTIVE);
+        user.setStatus(UserStatus.PENDING);
 
         userRepository.save(user);
+
+        // 인증번호 발송
+        String verificationCode = generateVerificationCode();
+        VerificationCode verification = VerificationCode.builder()
+                .user(user)
+                .code(verificationCode)
+                .expirationDatetime(LocalDateTime.now().plusMinutes(10))
+                .build();
+
+        verificationCodeRepository.save(verification);
+
+        emailService.sendVerificationCode(
+                userRegisterRequest.getEmail(),
+                verificationCode
+        );
     }
 
     @Transactional
@@ -138,5 +160,32 @@ public class AuthService {
         String accessToken = tokenProvider.generateAccessToken(username);
 
         return new RefreshResponse(accessToken);
+    }
+
+    public void verifyRegister(VerifyRegisterRequest verifyRegisterRequest) {
+        // email로 id 찾기
+        User user = userRepository.findByEmail(verifyRegisterRequest.getEmail())
+                .orElseThrow(() -> new ResourceNotFoundException("유저를 찾을 수 없습니다."));
+
+        VerificationCode verificationCode = verificationCodeRepository.findByUserIdAndExpirationDatetimeAfterAndIsVerifiedFalse(user.getId(), LocalDateTime.now())
+                .orElseThrow(() -> new ResourceNotFoundException("인증 시도를 하지 않은 이메일입니다."));
+
+        if(!verifyRegisterRequest.getCode().equals(verificationCode.getCode())) {
+            throw new AuthenticationFailureException("인증번호가 다릅니다.");
+        }
+
+        if(verificationCode.getExpirationDatetime().isBefore(LocalDateTime.now())) {
+            throw new AuthenticationFailureException("인증 시간이 만료되었습니다.");
+        }
+
+        user.setStatus(UserStatus.ACTIVE);
+        userRepository.save(user);
+        log.info("ACTIVE 처리 완료. 유저 이메일: {}", user.getEmail());
+    }
+
+    private String generateVerificationCode() {
+        Random random = new Random();
+        int code = 100000 + random.nextInt(900000);
+        return String.valueOf(code);
     }
 }

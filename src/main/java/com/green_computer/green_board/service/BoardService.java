@@ -171,7 +171,7 @@ public class BoardService {
                     board.getId(),
                     board.getTitle(),
                     board.getContent(),
-                    "sdads"
+                    board.getAuthor().getName()
             );
 
             response.add(newResult);
@@ -200,5 +200,27 @@ public class BoardService {
             board.setLikeCount(board.getLikeCount() + 1);
             return true;
         }
+    }
+
+    public List<PostResponse> search(String keyword) {
+        // 검색 -> SQL을 실행
+        List<Board> results = boardRepository.searchByTitle(keyword);
+
+        // 새로운 결과 전용 상자 제작
+        List<PostResponse> response = new ArrayList<>();
+
+        // board를 post response 로 변경하는 로직
+        for(Board board : results) {
+            PostResponse newResult = new PostResponse(
+                    board.getId(),
+                    board.getTitle(),
+                    board.getContent(),
+                    board.getAuthor().getName()
+            );
+
+            response.add(newResult);
+        }
+        // 결과를 return
+        return response;
     }
 }
