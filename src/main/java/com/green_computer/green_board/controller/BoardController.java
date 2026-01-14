@@ -75,4 +75,10 @@ public class BoardController {
         boolean like = boardService.toggleLike(id);
         return ResponseEntity.ok(ApiResponse.ok(like));
     }
+
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<List<PostResponse>>> searchPosts(@RequestParam String keyword) {
+        List<PostResponse> response = boardService.search(keyword);
+        return ResponseEntity.ok(ApiResponse.ok(response));
+    }
 }

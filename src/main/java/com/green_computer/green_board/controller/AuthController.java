@@ -47,4 +47,11 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
+    @PostMapping("/verify-register")
+    public ResponseEntity<ApiResponse<Void>> verifyRegister(
+            @Valid @RequestBody VerifyRegisterRequest verifyRegisterRequest
+    ) {
+        authService.verifyRegister(verifyRegisterRequest);
+        return ResponseEntity.ok(ApiResponse.ok());
+    }
 }
