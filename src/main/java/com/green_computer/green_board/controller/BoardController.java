@@ -4,13 +4,16 @@ import com.green_computer.green_board.dto.ApiResponse;
 import com.green_computer.green_board.dto.PostCreateRequest;
 import com.green_computer.green_board.dto.PostResponse;
 import com.green_computer.green_board.dto.PostUpdateRequest;
-import com.green_computer.green_board.entity.Board;
+import com.green_computer.green_board.dto.BoardListResponse;
+import com.green_computer.green_board.enums.BoardType;
 import com.green_computer.green_board.service.BoardService;
-import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
@@ -28,9 +31,18 @@ public class BoardController {
 
     // 1. 모든 게시글을, 작성 최신순으로 조회.
     @GetMapping
-    public ResponseEntity<ApiResponse<List<PostResponse>>> getAllBoards(Pageable pageable) {
-        List<PostResponse> results = boardService.getAllBoards(pageable);
+    public ResponseEntity<ApiResponse<Page<PostResponse>>> getAllBoards(
+            @PageableDefault(sort = {"createdDatetime", "id"}, direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        Page<PostResponse> results = boardService.getAllBoards(pageable);
         return ResponseEntity.ok(ApiResponse.ok(results)); // 200 OK with 글 데이터들
+    }
+
+    @GetMapping("/home")
+    public ResponseEntity<ApiResponse<BoardListResponse>> getBoardHome(
+            @PageableDefault(sort = {"createdDatetime", "id"}, direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok(boardService.getBoardHome(pageable)));
     }
 
     @GetMapping("/{id}")
@@ -42,8 +54,16 @@ public class BoardController {
     // 3. 새로운 글 작성
     @PostMapping
     public ResponseEntity<ApiResponse<Void>> createNewPost(@Valid @RequestBody PostCreateRequest request) {
-        int newPostId = boardService.createNewPost(request);
-        URI location = URI.create("/getDetail/" + newPostId);
+        int newPostId = boardService.createNewPost(request, BoardType.GENERAL);
+        URI location = URI.create("/api/board/" + newPostId);
+        return ResponseEntity.created(location).body(ApiResponse.ok());
+    }
+
+    @PostMapping("/notices")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> createNotice(@Valid @RequestBody PostCreateRequest request) {
+        int newPostId = boardService.createNewPost(request, BoardType.NOTICE);
+        URI location = URI.create("/api/board/" + newPostId);
         return ResponseEntity.created(location).body(ApiResponse.ok());
     }
 
@@ -51,7 +71,7 @@ public class BoardController {
     @PatchMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> updatePost(
             @PathVariable int id,
-            @RequestBody PostUpdateRequest request
+            @Valid @RequestBody PostUpdateRequest request
     ){
         boardService.updatePost(id, request);
         return ResponseEntity.ok().body(ApiResponse.ok());
@@ -61,7 +81,7 @@ public class BoardController {
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deletePost(@PathVariable int id) {
         boardService.deletePost(id);
-        return ResponseEntity.status(HttpStatus.NO_CONTENT).body(ApiResponse.ok());
+        return ResponseEntity.noContent().build();
     }
 
     // 내가 작성한 글 조회

@@ -3,20 +3,23 @@ package com.green_computer.green_board.service;
 import com.green_computer.green_board.dto.PostCreateRequest;
 import com.green_computer.green_board.dto.PostResponse;
 import com.green_computer.green_board.dto.PostUpdateRequest;
+import com.green_computer.green_board.dto.BoardListResponse;
 import com.green_computer.green_board.entity.Board;
 import com.green_computer.green_board.entity.Like;
 import com.green_computer.green_board.entity.User;
+import com.green_computer.green_board.enums.BoardType;
 import com.green_computer.green_board.exceptions.AuthenticationFailureException;
 import com.green_computer.green_board.exceptions.AuthorizationFailureException;
 import com.green_computer.green_board.exceptions.ResourceNotFoundException;
 import com.green_computer.green_board.repository.BoardRepository;
 import com.green_computer.green_board.repository.LikeRepository;
 import com.green_computer.green_board.repository.UserRepository;
-import jakarta.servlet.http.HttpSession;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
@@ -32,28 +35,40 @@ public class BoardService {
     private final UserRepository userRepository;
     private final LikeRepository likeRepository;
 
-    public List<PostResponse> getAllBoards(Pageable pageable) {
-        List<Board> results = boardRepository.findBoardsByIsDeletedFalse(pageable);
+    public Page<PostResponse> getAllBoards(Pageable pageable) {
+        return boardRepository.findPreviews(BoardType.GENERAL, pageable);
+    }
 
-        List<PostResponse> response = new ArrayList<>();
+    // 100자 제한을 적용하기 전의 일반 조회 예제다. 현재 API에서는 사용하지 않는다.
+    @Transactional(readOnly = true)
+    public List<PostResponse> getAllBoardsWithoutPreview() {
+        List<Board> boards = boardRepository.findByIsDeletedFalseAndTypeOrderByIdDesc(BoardType.GENERAL);
+        List<PostResponse> responses = new ArrayList<>();
 
-        for(Board board : results) {
-            User author = board.getAuthor();
-            String authorName = author.getName();
-
-            PostResponse newResult = new PostResponse(
+        for (Board board : boards) {
+            PostResponse response = new PostResponse(
                     board.getId(),
                     board.getTitle(),
                     board.getContent(),
-                    authorName
+                    board.getAuthor().getName(),
+                    board.getHits(),
+                    board.getLikeCount(),
+                    board.getCreatedDatetime(),
+                    board.getUpdatedDatetime()
             );
-
-            response.add(newResult);
+            responses.add(response);
         }
-
-        return response;
+        return responses;
     }
 
+    public BoardListResponse getBoardHome(Pageable pageable) {
+        Pageable noticePageable = Pageable.unpaged(Sort.by(Sort.Direction.DESC, "createdDatetime", "id"));
+        List<PostResponse> notices = boardRepository.findPreviews(BoardType.NOTICE, noticePageable).getContent();
+        Page<PostResponse> posts = boardRepository.findPreviews(BoardType.GENERAL, pageable);
+        return new BoardListResponse(notices, posts);
+    }
+
+    @Transactional
     public PostResponse getDetailPost(int id) {
 
         Optional<Board> boardOptional = boardRepository.findById(id);
@@ -73,18 +88,22 @@ public class BoardService {
 
         // 조회수 늘려주는 로직 : 조회랑은 관련 없음
         board.setHits(board.getHits() + 1); // 조회수 1 늘리기
-        boardRepository.save(board); // 변경된 조회수 데이터를 반영해서 다시 저장
+        boardRepository.saveAndFlush(board); // 수정일도 갱신된 뒤에 응답을 만든다.
 
         // DTO 만들어서, DTO를 응답해야된다.
         return new PostResponse(
                 board.getId(),
                 board.getTitle(),
                 board.getContent(),
-                writerName
+                writerName,
+                board.getHits(),
+                board.getLikeCount(),
+                board.getCreatedDatetime(),
+                board.getUpdatedDatetime()
         );
     }
 
-    public int createNewPost(PostCreateRequest request) {
+    public int createNewPost(PostCreateRequest request, BoardType type) {
         // 지금 로그인한 유저의 정보
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         User user = userRepository.findByUsername(username);
@@ -93,6 +112,7 @@ public class BoardService {
         board1.setTitle(request.getTitle());
         board1.setContent(request.getContent());
         board1.setAuthor(user);
+        board1.setType(type);
 
         Board newPost = boardRepository.save(board1);
         return newPost.getId();
@@ -100,11 +120,8 @@ public class BoardService {
 
     @Transactional
     public void updatePost(int id, PostUpdateRequest request) {
-        // 옵셔널은 있을수도 있고, 없을수도 있다는 의미의 타입이다
-        // 이유 : DB에는 게시글 5까지밖에 없는데 사용자가 7 입력하면 JPA가 못찾음
-        // -> 그럼 Board board에 담을게 없어서 null 담음
-        // -> 그럼 그 밑에 board.getTitle() 같은 코드가 NullPointerExcepion 나서 폭발함
-        // 이런 실수를 방지하기 위해 "없을 수도 있으니 꺼내 쓰기 전에 확인부터 해라" 를 유도하기 위한 타입
+        // 게시글을 찾지 못하면 null 대신 빈 Optional이 반환된다.
+        // 값이 없는 상태에서 get()을 호출하면 예외가 나므로 먼저 확인한다.
         Optional<Board> boardOptional = boardRepository.findById(id);
         if(boardOptional.isEmpty()) {
             throw new ResourceNotFoundException("게시물 못찾음");
@@ -113,12 +130,16 @@ public class BoardService {
         // 수정할 대상 게시글을 DB에서 가져옴
         Board board = boardOptional.get();
 
+        if (board.isDeleted()) {
+            throw new ResourceNotFoundException("삭제된 게시글입니다.");
+        }
+
         // 요청자의 User Id
         int requestUserId = userRepository.findByUsername(SecurityContextHolder.getContext().getAuthentication().getName()).getId();
         // 게시글 원 작성자의 User Id
         int writerId = board.getAuthor().getId();
 
-        // 요청자 ID와 게시글 작성자 ID가 다르면 삭제를 거절한다.
+        // 요청자 ID와 게시글 작성자 ID가 다르면 수정을 거절한다.
         if(requestUserId != writerId){
             throw new AuthorizationFailureException("작성자 이외에는 수정 못한다");
         }
@@ -135,6 +156,7 @@ public class BoardService {
 //        boardRepository.save(board);    // 수정 했으면 저장
     }
 
+    @Transactional
     public void deletePost(int id) {
         // 요청자가, 게시글 작성자와 동일한지 확인할거다.
         int requestUserId = userRepository.findByUsername(SecurityContextHolder.getContext().getAuthentication().getName()).getId();
@@ -151,12 +173,14 @@ public class BoardService {
             throw new AuthorizationFailureException("작성자 이외에는 삭제 못한다");
         }
 
-        boardRepository.deleteById(id);
+        board.setDeleted(true);
+        boardRepository.save(board);
     }
 
+    @Transactional(readOnly = true)
     public List<PostResponse> getMyPosts() {
 
-        List<Board> results = boardRepository.findBoardsByAuthor(
+        List<Board> results = boardRepository.findByAuthorAndIsDeletedFalseOrderByCreatedDatetimeDescIdDesc(
                 userRepository.findByUsername(
                         SecurityContextHolder.getContext().getAuthentication().getName()
                 )
@@ -171,7 +195,11 @@ public class BoardService {
                     board.getId(),
                     board.getTitle(),
                     board.getContent(),
-                    board.getAuthor().getName()
+                    board.getAuthor().getName(),
+                    board.getHits(),
+                    board.getLikeCount(),
+                    board.getCreatedDatetime(),
+                    board.getUpdatedDatetime()
             );
 
             response.add(newResult);
@@ -185,6 +213,9 @@ public class BoardService {
     public boolean toggleLike(int id){
         User user = userRepository.findByUsername(SecurityContextHolder.getContext().getAuthentication().getName());
         Board board = boardRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("게시글을 찾을 수 없습니다."));
+        if(board.isDeleted()) {
+            throw new ResourceNotFoundException("삭제된 게시글입니다.");
+        }
 
         Optional<Like> existingLike = likeRepository.findByUserIdAndBoardId(user.getId(), board.getId());
         if(existingLike.isPresent()) {
@@ -202,6 +233,7 @@ public class BoardService {
         }
     }
 
+    @Transactional(readOnly = true)
     public List<PostResponse> search(String keyword) {
         // 검색 -> SQL을 실행
         List<Board> results = boardRepository.searchByTitle(keyword);
@@ -215,7 +247,11 @@ public class BoardService {
                     board.getId(),
                     board.getTitle(),
                     board.getContent(),
-                    board.getAuthor().getName()
+                    board.getAuthor().getName(),
+                    board.getHits(),
+                    board.getLikeCount(),
+                    board.getCreatedDatetime(),
+                    board.getUpdatedDatetime()
             );
 
             response.add(newResult);

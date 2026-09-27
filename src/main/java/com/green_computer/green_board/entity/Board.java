@@ -1,11 +1,13 @@
 package com.green_computer.green_board.entity;
 
+import com.green_computer.green_board.enums.BoardType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
@@ -40,7 +42,7 @@ public class Board {
     @Column(name = "like_count", nullable = false)
     private int likeCount;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "author", nullable = false)
     private User author;
 
@@ -48,6 +50,14 @@ public class Board {
     @Column(name = "created_datetime")
     private LocalDateTime createdDatetime;
 
+    @LastModifiedDate
+    @Column(name = "updated_datetime")
+    private LocalDateTime updatedDatetime;
+
     @Column(name = "is_deleted")
     private boolean isDeleted;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "board_type", nullable = false)
+    private BoardType type;
 }
