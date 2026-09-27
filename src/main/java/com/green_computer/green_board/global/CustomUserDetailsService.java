@@ -1,6 +1,7 @@
 package com.green_computer.green_board.global;
 
 import com.green_computer.green_board.entity.User;
+import com.green_computer.green_board.enums.UserStatus;
 import com.green_computer.green_board.repository.UserRepository;
 import lombok.AllArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -20,6 +21,10 @@ public class CustomUserDetailsService implements UserDetailsService {
 
         if(user == null) {
             throw new UsernameNotFoundException(username);
+        }
+
+        if (user.isDeleted() || user.getStatus() != UserStatus.ACTIVE) {
+            throw new UsernameNotFoundException("사용할 수 없는 계정입니다.");
         }
 
         return org.springframework.security.core.userdetails.User

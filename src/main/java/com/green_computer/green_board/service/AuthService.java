@@ -8,6 +8,7 @@ import com.green_computer.green_board.entity.VerificationCode;
 import com.green_computer.green_board.enums.UserRole;
 import com.green_computer.green_board.enums.UserStatus;
 import com.green_computer.green_board.exceptions.AuthenticationFailureException;
+import com.green_computer.green_board.exceptions.InvalidStateException;
 import com.green_computer.green_board.exceptions.ResourceNotFoundException;
 import com.green_computer.green_board.global.TokenProvider;
 import com.green_computer.green_board.repository.AccessTokenBlacklistRepository;
@@ -15,7 +16,6 @@ import com.green_computer.green_board.repository.RefreshTokenRepository;
 import com.green_computer.green_board.repository.UserRepository;
 import com.green_computer.green_board.repository.VerificationCodeRepository;
 import io.jsonwebtoken.Jwts;
-import jakarta.servlet.http.HttpSession;
 import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.Email;
 import lombok.AllArgsConstructor;
@@ -44,14 +44,14 @@ public class AuthService {
 
     private static final long REFRESH_TOKEN_VALIDITY = 1000 * 60 * 60 * 24;
 
-    public LoginResponse login(UserLoginRequest userLoginRequest, HttpSession session) {
+    public LoginResponse login(UserLoginRequest userLoginRequest) {
         // 엑세스토큰, 리프레시 토큰
         User user = userRepository.findByUsername(userLoginRequest.getUsername());
         if(user == null){
             throw new ResourceNotFoundException("User not found");
         }
 
-        if(!user.getStatus().equals(UserStatus.ACTIVE)){
+        if(user.isDeleted() || !user.getStatus().equals(UserStatus.ACTIVE)){
             throw new AuthenticationFailureException("User is not active");
         }
 
@@ -75,7 +75,14 @@ public class AuthService {
         return new LoginResponse(accessToken, refreshToken);
     }
 
+    @Transactional
     public void register(UserRegisterRequest userRegisterRequest) {
+        if (userRepository.findByUsername(userRegisterRequest.getUsername()) != null) {
+            throw new InvalidStateException("이미 사용 중인 아이디입니다.");
+        }
+        if (userRepository.findByEmail(userRegisterRequest.getEmail()).isPresent()) {
+            throw new InvalidStateException("이미 사용 중인 이메일입니다.");
+        }
         // 유저 가입 with PENDING
         String encodedPassword = passwordEncoder.encode(userRegisterRequest.getPassword());
         User user = new User();
@@ -110,6 +117,13 @@ public class AuthService {
 
         // 1. 지금 로그아웃을 요청한 사용자의 유저 네임을 알아낸다
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        String accessToken = logoutRequest.getAccessToken();
+        if (!tokenProvider.validateAccessToken(accessToken)) {
+            throw new AuthenticationFailureException("유효한 엑세스 토큰이 아닙니다.");
+        }
+        if (!username.equals(tokenProvider.getUsernameFromToken(accessToken))) {
+            throw new AuthenticationFailureException("본인의 토큰만 로그아웃할 수 있습니다.");
+        }
         // 2. 사용자의 유저네임을 통해 사용자의 id (pk) 를 알아낸다
         int userId = userRepository.findByUsername(username).getId();
         // 3. refresh_token 테이블에서 해당 사용자의 모든 refresh token을 찾아 지운다.
@@ -118,7 +132,6 @@ public class AuthService {
         // 행동 : 로그아웃 할 사용자의 엑세스토큰을 블랙리스트에 삽입한다.
 
         // 1. 지금 로그아웃을 요청한 사용자의 엑세스 토큰을 가져온다
-        String accessToken = logoutRequest.getAccessToken();
         // 2. 해당 엑세스 토큰을 블랙리스트 DB에 삽입한다.
         AccessTokenBlacklist accessTokenBlacklist = new AccessTokenBlacklist();
         accessTokenBlacklist.setToken(accessToken);
@@ -137,9 +150,9 @@ public class AuthService {
     public RefreshResponse refresh(RefreshRequest refreshRequest) {
         String userRefreshToken = refreshRequest.getRefreshToken();
         // 1. 위/변조 여부 검증
-        if(!tokenProvider.validateToken(userRefreshToken)) {
+        if(!tokenProvider.validateRefreshToken(userRefreshToken)) {
             // 검증 실패 예외
-            throw new AuthenticationFailureException("위조된 토큰입니다.");
+            throw new AuthenticationFailureException("만료되었거나 유효하지 않은 리프레시 토큰입니다.");
         }
 
         // 2. 우리 서버에 존재하는 refresh token 인지 검증
@@ -157,11 +170,16 @@ public class AuthService {
 
         // 3. 만료 안됐으면 새로운 access token 만들어서 반환
         String username = tokenProvider.getUsernameFromToken(userRefreshToken);
+        User user = userRepository.findByUsername(username);
+        if (user == null || user.isDeleted() || user.getStatus() != UserStatus.ACTIVE) {
+            throw new AuthenticationFailureException("사용할 수 없는 계정입니다.");
+        }
         String accessToken = tokenProvider.generateAccessToken(username);
 
         return new RefreshResponse(accessToken);
     }
 
+    @Transactional
     public void verifyRegister(VerifyRegisterRequest verifyRegisterRequest) {
         // email로 id 찾기
         User user = userRepository.findByEmail(verifyRegisterRequest.getEmail())
@@ -180,6 +198,8 @@ public class AuthService {
 
         user.setStatus(UserStatus.ACTIVE);
         userRepository.save(user);
+        verificationCode.setVerified(true);
+        verificationCodeRepository.save(verificationCode);
         log.info("ACTIVE 처리 완료. 유저 이메일: {}", user.getEmail());
     }
 

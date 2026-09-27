@@ -1,26 +1,24 @@
 package com.green_computer.green_board.global;
 
-import io.jsonwebtoken.Jwt;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
-import lombok.extern.apachecommons.CommonsLog;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
-import java.time.LocalDateTime;
 import java.util.Date;
+import java.util.UUID;
 
 @Component
 public class TokenProvider {
     private final Key key;
 
-    // 엑세스 토큰의 지속 시간 (초)
+    // 엑세스 토큰의 지속 시간 (밀리초)
     private static final long ACCESS_TOKEN_VALIDITY = 1000 * 60 * 60;
 
-    // 리프레시 토큰의 지속 시간 (초)
+    // 리프레시 토큰의 지속 시간 (밀리초)
     private static final long REFRESH_TOKEN_VALIDITY = 1000 * 60 * 60 * 24;
 
     public TokenProvider(@Value("${spring.jwt.secret}") String secretKey) {
@@ -34,6 +32,8 @@ public class TokenProvider {
 
         return Jwts.builder()
                 .setSubject(username)
+                .setId(UUID.randomUUID().toString())
+                .claim("tokenType", "ACCESS")
                 .setIssuedAt(new Date())
                 .setExpiration(expiry)
                 .signWith(key, SignatureAlgorithm.HS256)
@@ -47,6 +47,8 @@ public class TokenProvider {
 
         return Jwts.builder()
                 .setSubject(username)
+                .setId(UUID.randomUUID().toString())
+                .claim("tokenType", "REFRESH")
                 .setIssuedAt(new Date())
                 .setExpiration(expiry)
                 .signWith(key, SignatureAlgorithm.HS256)
@@ -54,10 +56,29 @@ public class TokenProvider {
     }
 
     // 토큰 유효성(위/변조 여부) 검증
-    public boolean validateToken(String token) {
+    public boolean validateAccessToken(String token) {
         try{
-            Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
-            return true;
+            String tokenType = Jwts.parserBuilder()
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody()
+                    .get("tokenType", String.class);
+            return "ACCESS".equals(tokenType);
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    public boolean validateRefreshToken(String token) {
+        try{
+            String tokenType = Jwts.parserBuilder()
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody()
+                    .get("tokenType", String.class);
+            return "REFRESH".equals(tokenType);
         } catch (JwtException | IllegalArgumentException e) {
             return false;
         }

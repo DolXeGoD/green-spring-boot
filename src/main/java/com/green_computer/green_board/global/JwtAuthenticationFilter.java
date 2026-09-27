@@ -12,6 +12,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -36,13 +37,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if(header != null && header.startsWith("Bearer ")) {
             String token = header.substring(7);
             // 토큰 위/변조 여부 검사
-            if(tokenProvider.validateToken(token)) {
+            if(tokenProvider.validateAccessToken(token)) {
                 // 블랙리스트 여부 확인
                 Optional<AccessTokenBlacklist> optionalATB = accessTokenBlacklistRepository.findByToken(token);
                 if(optionalATB.isEmpty()) {
                     String username = tokenProvider.getUsernameFromToken(token);
-                    UserDetails userDetails
-                            = userDetailsService.loadUserByUsername(username);
+                    UserDetails userDetails;
+                    try {
+                        userDetails = userDetailsService.loadUserByUsername(username);
+                    } catch (UsernameNotFoundException exception) {
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        return;
+                    }
 
                     // Spring Security 인증 설정
                     UsernamePasswordAuthenticationToken authenticationToken =

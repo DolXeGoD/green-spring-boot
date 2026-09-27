@@ -19,7 +19,7 @@ public class AccessTokenBlacklist {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
-    @Column(name = "token", nullable = false)
+    @Column(name = "token", nullable = false, length = 1024)
     private String token;
 
     @Column(name = "expiration_datetime", nullable = false)

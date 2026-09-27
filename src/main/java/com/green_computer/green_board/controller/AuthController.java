@@ -3,7 +3,6 @@ package com.green_computer.green_board.controller;
 import com.green_computer.green_board.dto.*;
 import com.green_computer.green_board.exceptions.AuthenticationFailureException;
 import com.green_computer.green_board.service.AuthService;
-import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,10 +21,9 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<LoginResponse>> login(
-            @Valid @RequestBody UserLoginRequest userLoginRequest,
-            HttpSession session
+            @Valid @RequestBody UserLoginRequest userLoginRequest
     ) {
-        LoginResponse result = authService.login(userLoginRequest, session);
+        LoginResponse result = authService.login(userLoginRequest);
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
 
