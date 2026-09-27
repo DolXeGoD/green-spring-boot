@@ -7,14 +7,11 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
-import org.springframework.cglib.core.Local;
 import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 @Entity
 @Table(name = "users")
@@ -41,6 +38,10 @@ public class User {
     @Column(name = "created_datetime")
     private LocalDateTime createdDateTime;
 
+    @LastModifiedDate
+    @Column(name = "updated_datetime")
+    private LocalDateTime updatedDateTime;
+
     @Column(name = "is_deleted")
     private boolean isDeleted;
 
@@ -52,7 +53,7 @@ public class User {
     @Enumerated(EnumType.STRING)
     private UserStatus status;
 
-    @Column(name = "unblock_datetime", nullable = false)
+    @Column(name = "unblock_datetime")
     private LocalDateTime unblockDateTime;
 
     @Column(name = "email", nullable = false, unique = true)

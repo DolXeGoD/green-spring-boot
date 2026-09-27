@@ -13,4 +13,5 @@ public class UserResponse {
     private int id;
     private String nickname;
     private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }

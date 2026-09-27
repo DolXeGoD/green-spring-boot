@@ -3,10 +3,15 @@ package com.green_computer.green_board.controller;
 import com.green_computer.green_board.dto.ApiResponse;
 import com.green_computer.green_board.dto.UserResponse;
 import com.green_computer.green_board.dto.UserUpdateRequest;
+import com.green_computer.green_board.dto.CommentResponse;
+import com.green_computer.green_board.dto.PasswordChangeRequest;
+import com.green_computer.green_board.dto.PostResponse;
 import com.green_computer.green_board.service.UserService;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/user")
@@ -25,7 +30,7 @@ public class UserController {
     // 내 정보 수정
     @PatchMapping("/me")
     public ResponseEntity<ApiResponse<Void>> updateUserInfo(
-            @RequestBody UserUpdateRequest request
+            @Valid @RequestBody UserUpdateRequest request
     ) {
         userService.updateUserInfo(request);
         return ResponseEntity.ok(ApiResponse.ok());
@@ -35,6 +40,22 @@ public class UserController {
     @DeleteMapping("/me")
     public ResponseEntity<ApiResponse<Void>> deleteUser() {
         userService.deleteUser();
-        return ResponseEntity.status(HttpStatus.NO_CONTENT).body(ApiResponse.ok());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/me/password")
+    public ResponseEntity<ApiResponse<Void>> changePassword(@Valid @RequestBody PasswordChangeRequest request) {
+        userService.changePassword(request);
+        return ResponseEntity.ok(ApiResponse.ok());
+    }
+
+    @GetMapping("/me/comments")
+    public ResponseEntity<ApiResponse<List<CommentResponse>>> getMyComments() {
+        return ResponseEntity.ok(ApiResponse.ok(userService.getMyComments()));
+    }
+
+    @GetMapping("/me/likes")
+    public ResponseEntity<ApiResponse<List<PostResponse>>> getMyLikes() {
+        return ResponseEntity.ok(ApiResponse.ok(userService.getMyLikes()));
     }
 }
