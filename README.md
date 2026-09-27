@@ -1,53 +1,39 @@
 # green_board
 
-Spring Boot 게시판 수업에서 참고하는 코드입니다.
-수업에서는 기본 CRUD부터 시작해서 기능을 하나씩 붙입니다. 이 저장소는 JWT까지 적용한 최종 상태라 세션 로그인 코드는 없습니다.
+강사용 참고 코드
 
-Java 21, Spring Boot 3.5.9, MySQL을 사용합니다.
-
-## 실행
-
-IntelliJ에서 Gradle 프로젝트로 열고 `GreenBoardApplication`을 실행합니다.
-실행 설정에 아래 환경 변수를 넣어 주세요. `.env` 파일은 Spring Boot가 자동으로 읽지 않습니다.
-
-```text
-DB_URL=jdbc:mysql://localhost:3306/데이터베이스이름
-DB_USERNAME=사용자이름
-DB_PASSWORD=비밀번호
-JWT_SECRET=JWT서명키
-MAIL_USERNAME=Gmail주소
-MAIL_PASSWORD=Gmail앱비밀번호
-```
-
-JWT 서명키는 현재 HS256 설정에 맞게 32바이트 이상으로 지정합니다.
-Discord 신고 알림을 사용한다면 `DISCORD_WEBHOOK_URL`도 설정합니다. 없으면 신고만 저장합니다.
-
-기존 수업 DB에 추가할 테이블과 컬럼은 `src/main/resources/schema-additions.sql`,
-`src/main/resources/schema-reference-fixes.sql`에 있습니다.
-이미 있는 컬럼과 FULLTEXT 인덱스는 건너뛰세요. 현재 로컬 수업 DB에는 필요한 변경을 적용해 두었습니다.
-두 파일은 자동 실행되지 않으며, 새 DB를 처음부터 만드는 전체 스키마는 아닙니다.
-
-Swagger는 실행 후 `/swagger-ui/index.html`에서 확인할 수 있습니다.
-
-## 수업 참고
-
-- 게시글 CRUD, 조회수, 좋아요, 페이지네이션, 정렬, 제목 FULLTEXT 검색
-- 공지사항, 댓글, 내 게시글·댓글·좋아요 조회
-- 회원가입과 이메일 인증, JWT 로그인, 토큰 재발급과 정리 스케줄러
-- 비밀번호 변경, 회원 차단·탈퇴, 관리자 삭제, 신고 처리와 Discord 알림
-- DTO 검증, 공통 응답, 예외 처리, JPA Auditing, Soft Delete, Log4j2
-
-목록의 본문은 100자까지 반환합니다. 제한 전 조회 예제는
-`BoardService.getAllBoardsWithoutPreview()`에 남겨 두었고, 실제 API에서는 호출하지 않습니다.
-공지사항과 일반 게시글을 함께 조회하는 코드는 `getBoardHome()`에 있습니다.
-
-```text
-GET /api/board?page=0&size=10
-GET /api/board?page=0&size=10&sort=hits,desc&sort=id,desc
-GET /api/board?page=0&size=10&sort=likeCount,desc&sort=id,desc
-```
-
-게시글 수정일은 내용뿐 아니라 조회수나 좋아요 수가 바뀔 때도 갱신됩니다.
-비밀번호 변경 시 리프레시 토큰을 삭제하지만, 이미 발급한 액세스 토큰은 만료까지 유효합니다.
-
-실행 점검 결과와 메일·Discord 연동 시 확인할 내용은 [QA.md](QA.md)에 적어 두었습니다.
+1. 스프링 이론: 백엔드·프론트엔드, IP·Port·DNS, HTTP, REST API, 스프링의 등장 배경과 Spring Boot
+2. 프로젝트 생성과 GET·POST 테스트, IoC·DI
+3. 기본 게시판 구현, HTTP 상태 코드·메서드·계층 구조
+4. JPA DB 연결과 게시판 CRUD
+5. ResponseEntity와 RESTful URL 네이밍
+6. @Valid를 이용한 입력 검증
+7. 조회수
+8. 세션 기반 회원가입·로그인 (최종 코드에서는 JWT로 대체)
+9. 회원 CRUD
+10. 생성일·수정일 자동 처리
+11. DTO 소개와 적용
+12. try/catch 예외 처리
+13. 게시글·회원 JPA 연관관계 매핑
+14. Lombok
+15. Log4j2 로깅
+16. 전역 예외 처리
+17. 작성자만 게시글 수정·삭제, Lazy Loading
+18. 내 게시글 조회
+19. JWT 로그인: Security·Filter, 리프레시 토큰, 만료 토큰 정리 스케줄러
+20. 게시글 좋아요
+21. 페이지네이션
+22. 최신순·조회수순·좋아요순 정렬
+23. LEFT(content, 100)을 이용한 목록 본문 길이 제한
+24. 공지사항: 게시글 타입과 공지·일반 게시글 분리 조회
+25. 댓글
+26. 제네릭 ApiResponse로 응답 형식 공통화
+27. Soft Delete
+28. @Transactional
+29. Swagger 문서화
+30. MySQL FULLTEXT 검색
+31. 가입 시 이메일 인증번호 발송·확인
+32. 비밀번호 변경
+33. 내 댓글·좋아요 조회
+34. 관리자 권한: 게시글·댓글 강제삭제, 회원 정지·탈퇴
+35. 게시글·댓글 신고, 관리자 신고 처리, Discord 알림
