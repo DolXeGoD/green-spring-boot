@@ -19,6 +19,7 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -35,18 +36,25 @@ public class BoardService {
     private final UserRepository userRepository;
     private final LikeRepository likeRepository;
 
+    @Transactional(readOnly = true)
     public Page<PostResponse> getAllBoards(Pageable pageable) {
-        return boardRepository.findPreviews(BoardType.GENERAL, pageable);
+        return getBoardPage(BoardType.GENERAL, pageable);
     }
 
-    // 100자 제한을 적용하기 전의 일반 조회 예제다. 현재 API에서는 사용하지 않는다.
     @Transactional(readOnly = true)
-    public List<PostResponse> getAllBoardsWithoutPreview() {
-        List<Board> boards = boardRepository.findByIsDeletedFalseAndTypeOrderByIdDesc(BoardType.GENERAL);
+    public BoardListResponse getBoardHome(Pageable pageable) {
+        Pageable noticePageable = Pageable.unpaged(Sort.by(Sort.Direction.DESC, "createdDatetime", "id"));
+        List<PostResponse> notices = getBoardPage(BoardType.NOTICE, noticePageable).getContent();
+        Page<PostResponse> posts = getBoardPage(BoardType.GENERAL, pageable);
+        return new BoardListResponse(notices, posts);
+    }
+
+    private Page<PostResponse> getBoardPage(BoardType type, Pageable pageable) {
+        Page<Board> boardPage = boardRepository.findByIsDeletedFalseAndType(type, pageable);
         List<PostResponse> responses = new ArrayList<>();
 
-        for (Board board : boards) {
-            PostResponse response = new PostResponse(
+        for (Board board : boardPage.getContent()) {
+            responses.add(new PostResponse(
                     board.getId(),
                     board.getTitle(),
                     board.getContent(),
@@ -55,17 +63,10 @@ public class BoardService {
                     board.getLikeCount(),
                     board.getCreatedDatetime(),
                     board.getUpdatedDatetime()
-            );
-            responses.add(response);
+            ));
         }
-        return responses;
-    }
 
-    public BoardListResponse getBoardHome(Pageable pageable) {
-        Pageable noticePageable = Pageable.unpaged(Sort.by(Sort.Direction.DESC, "createdDatetime", "id"));
-        List<PostResponse> notices = boardRepository.findPreviews(BoardType.NOTICE, noticePageable).getContent();
-        Page<PostResponse> posts = boardRepository.findPreviews(BoardType.GENERAL, pageable);
-        return new BoardListResponse(notices, posts);
+        return new PageImpl<>(responses, pageable, boardPage.getTotalElements());
     }
 
     @Transactional
