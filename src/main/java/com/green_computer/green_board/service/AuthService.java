@@ -10,16 +10,17 @@ import com.green_computer.green_board.enums.UserStatus;
 import com.green_computer.green_board.exceptions.AuthenticationFailureException;
 import com.green_computer.green_board.exceptions.InvalidStateException;
 import com.green_computer.green_board.exceptions.ResourceNotFoundException;
-import com.green_computer.green_board.global.TokenProvider;
+import com.green_computer.green_board.security.JwtTokenProvider;
 import com.green_computer.green_board.repository.AccessTokenBlacklistRepository;
 import com.green_computer.green_board.repository.RefreshTokenRepository;
 import com.green_computer.green_board.repository.UserRepository;
 import com.green_computer.green_board.repository.VerificationCodeRepository;
-import io.jsonwebtoken.Jwts;
 import jakarta.transaction.Transactional;
-import jakarta.validation.constraints.Email;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -39,37 +40,37 @@ public class AuthService {
     private RefreshTokenRepository refreshTokenRepository;
     private VerificationCodeRepository verificationCodeRepository;
     private PasswordEncoder passwordEncoder;
-    private TokenProvider tokenProvider;
+    private JwtTokenProvider tokenProvider;
     private EmailService emailService;
+    private AuthenticationManager authenticationManager;
 
-    private static final long REFRESH_TOKEN_VALIDITY = 1000 * 60 * 60 * 24;
-
+    @Transactional
     public LoginResponse login(UserLoginRequest userLoginRequest) {
         // 엑세스토큰, 리프레시 토큰
+        try {
+            authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
+                    userLoginRequest.getUsername(), userLoginRequest.getPassword()
+            ));
+        } catch (AuthenticationException exception) {
+            throw new AuthenticationFailureException("아이디 또는 비밀번호가 올바르지 않습니다.");
+        }
+
         User user = userRepository.findByUsername(userLoginRequest.getUsername());
-        if(user == null){
-            throw new ResourceNotFoundException("User not found");
-        }
-
-        if(user.isDeleted() || !user.getStatus().equals(UserStatus.ACTIVE)){
-            throw new AuthenticationFailureException("User is not active");
-        }
-
-        if(!passwordEncoder.matches(userLoginRequest.getPassword(), user.getPassword())){
-            // 실패했으면 401
-            throw new AuthenticationFailureException("Wrong password");
-        }
 
         // 로그인 성공
         String accessToken = tokenProvider.generateAccessToken(user.getUsername());
         String refreshToken = tokenProvider.generateRefreshToken(user.getUsername());
 
-        // Refresh Token 을 DB에 추가
+        refreshTokenRepository.deleteByUserId(user.getId());
+
+        Date expiration = tokenProvider.getExpiration(refreshToken);
+        LocalDateTime expirationDateTime = expiration.toInstant()
+                .atZone(ZoneId.systemDefault()).toLocalDateTime();
+
         RefreshToken refresh = new RefreshToken();
         refresh.setToken(refreshToken);
         refresh.setUser(user);
-        refresh.setExpirationDateTime(LocalDateTime.now().plusSeconds(REFRESH_TOKEN_VALIDITY/1000));
-
+        refresh.setExpirationDateTime(expirationDateTime);
         refreshTokenRepository.save(refresh);
 
         return new LoginResponse(accessToken, refreshToken);
@@ -161,14 +162,11 @@ public class AuthService {
             throw new AuthenticationFailureException("로그아웃으로 인해 삭제된 토큰입니다.");
         }
 
-        // 3. 만료 여부 확인
-        Date expiration = tokenProvider.getExpiration(userRefreshToken);
-        if(expiration.before(new Date())){
-            // 만료기간 지난 예외
-            throw new AuthenticationFailureException("더 이상 사용할 수 없는 토큰입니다.");
+        if (!optionalRt.get().getExpirationDateTime().isAfter(LocalDateTime.now())) {
+            throw new AuthenticationFailureException("만료된 리프레시 토큰입니다.");
         }
 
-        // 3. 만료 안됐으면 새로운 access token 만들어서 반환
+        // 만료되지 않은 토큰이면 새로운 access token을 만들어서 반환
         String username = tokenProvider.getUsernameFromToken(userRefreshToken);
         User user = userRepository.findByUsername(username);
         if (user == null || user.isDeleted() || user.getStatus() != UserStatus.ACTIVE) {

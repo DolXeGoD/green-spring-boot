@@ -1,4 +1,4 @@
-package com.green_computer.green_board.global;
+package com.green_computer.green_board.security;
 
 import com.green_computer.green_board.entity.User;
 import com.green_computer.green_board.enums.UserStatus;

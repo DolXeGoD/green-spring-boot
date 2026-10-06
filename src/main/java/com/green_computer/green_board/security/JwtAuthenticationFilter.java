@@ -1,8 +1,7 @@
-package com.green_computer.green_board.global;
+package com.green_computer.green_board.security;
 
 import com.green_computer.green_board.entity.AccessTokenBlacklist;
 import com.green_computer.green_board.repository.AccessTokenBlacklistRepository;
-import jakarta.servlet.Filter;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -22,9 +21,10 @@ import java.util.Optional;
 @Component
 @AllArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
-    private final TokenProvider tokenProvider;
+    private final JwtTokenProvider tokenProvider;
     private final UserDetailsService userDetailsService;
     private final AccessTokenBlacklistRepository accessTokenBlacklistRepository;
+    private final JwtAuthenticationEntryPoint authenticationEntryPoint;
 
     @Override
     protected void doFilterInternal(
@@ -46,7 +46,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     try {
                         userDetails = userDetailsService.loadUserByUsername(username);
                     } catch (UsernameNotFoundException exception) {
-                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        authenticationEntryPoint.commence(request, response, exception);
                         return;
                     }
 

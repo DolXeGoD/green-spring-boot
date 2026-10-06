@@ -13,14 +13,14 @@ import java.time.LocalDateTime;
 @Component
 @AllArgsConstructor
 @Slf4j
-public class TokenCleaningScheduler {
+public class TokenCleanupScheduler {
     private final RefreshTokenRepository refreshTokenRepository;
     private final AccessTokenBlacklistRepository accessTokenBlacklistRepository;
     /*
-    * 매일 새벽 01시에 'RefreshToken' 과 'AccessTokenBlacklist' 테이블 내
+    * 매일 새벽 03시에 'RefreshToken' 과 'AccessTokenBlacklist' 테이블 내
     * 만료기간이 지난 데이터를 물리 삭제하는 스케줄러
      */
-    @Scheduled(cron = "0 0 1 1/1 * ?")
+    @Scheduled(cron = "0 0 3 * * *", zone = "Asia/Seoul")
     @Transactional
     public void cleanTokens(){
         LocalDateTime now = LocalDateTime.now();

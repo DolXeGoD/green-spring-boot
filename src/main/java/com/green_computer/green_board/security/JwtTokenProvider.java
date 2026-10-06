@@ -1,4 +1,4 @@
-package com.green_computer.green_board.global;
+package com.green_computer.green_board.security;
 
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -12,16 +12,16 @@ import java.util.Date;
 import java.util.UUID;
 
 @Component
-public class TokenProvider {
+public class JwtTokenProvider {
     private final Key key;
 
     // 엑세스 토큰의 지속 시간 (밀리초)
     private static final long ACCESS_TOKEN_VALIDITY = 1000 * 60 * 60;
 
     // 리프레시 토큰의 지속 시간 (밀리초)
-    private static final long REFRESH_TOKEN_VALIDITY = 1000 * 60 * 60 * 24;
+    private static final long REFRESH_TOKEN_VALIDITY = 1000 * 60 * 60 * 24 * 7;
 
-    public TokenProvider(@Value("${spring.jwt.secret}") String secretKey) {
+    public JwtTokenProvider(@Value("${spring.jwt.secret}") String secretKey) {
         this.key = Keys.hmacShaKeyFor(secretKey.getBytes());
     }
 
