@@ -42,9 +42,6 @@ public class User {
     @Column(name = "updated_datetime")
     private LocalDateTime updatedDateTime;
 
-    @Column(name = "is_deleted")
-    private boolean isDeleted;
-
     @Column(name = "role", nullable = false)
     @Enumerated(EnumType.STRING)
     private UserRole role;

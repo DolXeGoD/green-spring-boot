@@ -14,7 +14,6 @@ CREATE TABLE users (
     created_datetime DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     updated_datetime DATETIME(6),
     unblock_datetime DATETIME(6),
-    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
     UNIQUE KEY uk_users_username (username),
     UNIQUE KEY uk_users_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

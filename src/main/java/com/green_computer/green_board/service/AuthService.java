@@ -162,7 +162,7 @@ public class AuthService {
         // 만료되지 않은 토큰이면 새로운 access token을 만들어서 반환
         String username = tokenProvider.getUsernameFromToken(userRefreshToken);
         User user = userRepository.findByUsername(username);
-        if (user == null || user.isDeleted() || user.getStatus() != UserStatus.ACTIVE) {
+        if (user == null || user.getStatus() != UserStatus.ACTIVE) {
             throw new AuthenticationFailureException("사용할 수 없는 계정입니다.");
         }
         String accessToken = tokenProvider.generateAccessToken(username);

@@ -23,7 +23,7 @@ public class CustomUserDetailsService implements UserDetailsService {
             throw new UsernameNotFoundException(username);
         }
 
-        if (user.isDeleted() || user.getStatus() != UserStatus.ACTIVE) {
+        if (user.getStatus() != UserStatus.ACTIVE) {
             throw new UsernameNotFoundException("사용할 수 없는 계정입니다.");
         }
 

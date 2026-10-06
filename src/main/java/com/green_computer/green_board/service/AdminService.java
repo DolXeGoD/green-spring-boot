@@ -81,14 +81,13 @@ public class AdminService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("유저를 찾을 수 없습니다."));
 
-        if (user.isDeleted()) {
+        if (user.getStatus() == UserStatus.QUITTED) {
             throw new InvalidStateException("이미 탈퇴한 유저입니다.");
         }
         if (user.getRole() == UserRole.ADMIN) {
             throw new AuthorizationFailureException("ADMIN 유저는 강제 탈퇴시킬 수 없습니다.");
         }
 
-        user.setDeleted(true);
         user.setStatus(UserStatus.QUITTED);
         user.setUnblockDateTime(null);
         userRepository.save(user);

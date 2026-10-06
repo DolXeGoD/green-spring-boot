@@ -50,7 +50,7 @@ public class UserService {
         }
 
         User targetUser = targetUserOptional.get();
-        if(targetUser.isDeleted()) {
+        if(targetUser.getStatus() == UserStatus.QUITTED) {
             throw new ResourceNotFoundException("탈퇴한 유저입니다.");
         }
 
@@ -79,7 +79,6 @@ public class UserService {
     @Transactional
     public void deleteUser() {
         User requestUser = userRepository.findByUsername(SecurityContextHolder.getContext().getAuthentication().getName());
-        requestUser.setDeleted(true);
         requestUser.setStatus(UserStatus.QUITTED);
         requestUser.setUnblockDateTime(null);
         userRepository.save(requestUser);
