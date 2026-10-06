@@ -113,18 +113,11 @@ public class AuthService {
     }
 
     @Transactional
-    public void logout(LogoutRequest logoutRequest) {
+    public void logout(String accessToken) {
         // 행동 : 로그아웃 할 사용자의 리프레시 토큰을 DB에서 지운다.
 
         // 1. 지금 로그아웃을 요청한 사용자의 유저 네임을 알아낸다
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        String accessToken = logoutRequest.getAccessToken();
-        if (!tokenProvider.validateAccessToken(accessToken)) {
-            throw new AuthenticationFailureException("유효한 엑세스 토큰이 아닙니다.");
-        }
-        if (!username.equals(tokenProvider.getUsernameFromToken(accessToken))) {
-            throw new AuthenticationFailureException("본인의 토큰만 로그아웃할 수 있습니다.");
-        }
         // 2. 사용자의 유저네임을 통해 사용자의 id (pk) 를 알아낸다
         int userId = userRepository.findByUsername(username).getId();
         // 3. refresh_token 테이블에서 해당 사용자의 모든 refresh token을 찾아 지운다.
