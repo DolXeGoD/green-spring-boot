@@ -10,6 +10,7 @@ import com.green_computer.green_board.entity.User;
 import com.green_computer.green_board.enums.BoardType;
 import com.green_computer.green_board.exceptions.AuthenticationFailureException;
 import com.green_computer.green_board.exceptions.AuthorizationFailureException;
+import com.green_computer.green_board.exceptions.InvalidStateException;
 import com.green_computer.green_board.exceptions.ResourceNotFoundException;
 import com.green_computer.green_board.repository.BoardRepository;
 import com.green_computer.green_board.repository.LikeRepository;
@@ -20,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -37,16 +39,36 @@ public class BoardService {
     private final LikeRepository likeRepository;
 
     @Transactional(readOnly = true)
-    public Page<PostResponse> getAllBoards(Pageable pageable) {
-        return getBoardPage(BoardType.GENERAL, pageable);
+    public Page<PostResponse> getAllBoards(int page, int size, String order) {
+        return getBoardPage(BoardType.GENERAL, createPageable(page, size, order));
     }
 
     @Transactional(readOnly = true)
-    public BoardListResponse getBoardHome(Pageable pageable) {
+    public BoardListResponse getBoardHome(int page, int size, String order) {
         Pageable noticePageable = Pageable.unpaged(Sort.by(Sort.Direction.DESC, "createdDatetime", "id"));
         List<PostResponse> notices = getBoardPage(BoardType.NOTICE, noticePageable).getContent();
-        Page<PostResponse> posts = getBoardPage(BoardType.GENERAL, pageable);
+        Page<PostResponse> posts = getBoardPage(BoardType.GENERAL, createPageable(page, size, order));
         return new BoardListResponse(notices, posts);
+    }
+
+    private Pageable createPageable(int page, int size, String order) {
+        if (page < 0 || size < 1) {
+            throw new InvalidStateException("페이지 번호와 크기를 확인해 주세요.");
+        }
+
+        Sort sort;
+        if ("views".equals(order)) {
+            sort = Sort.by(Sort.Direction.DESC, "hits");
+        } else if ("likes".equals(order)) {
+            sort = Sort.by(Sort.Direction.DESC, "likeCount");
+        } else if ("latest".equals(order)) {
+            sort = Sort.by(Sort.Direction.DESC, "createdDatetime");
+        } else {
+            throw new InvalidStateException("정렬 기준은 latest, views, likes 중 하나여야 합니다.");
+        }
+
+        sort = sort.and(Sort.by(Sort.Direction.DESC, "id"));
+        return PageRequest.of(page, size, sort);
     }
 
     private Page<PostResponse> getBoardPage(BoardType type, Pageable pageable) {

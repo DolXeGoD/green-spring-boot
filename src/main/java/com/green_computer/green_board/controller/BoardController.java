@@ -8,10 +8,7 @@ import com.green_computer.green_board.dto.BoardListResponse;
 import com.green_computer.green_board.enums.BoardType;
 import com.green_computer.green_board.service.BoardService;
 import jakarta.validation.Valid;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -29,20 +26,24 @@ public class BoardController {
     }
 
 
-    // 1. 모든 게시글을, 작성 최신순으로 조회.
+    // 일반 게시글을 페이지와 정렬 기준에 맞춰 조회.
     @GetMapping
     public ResponseEntity<ApiResponse<Page<PostResponse>>> getAllBoards(
-            @PageableDefault(sort = {"createdDatetime", "id"}, direction = Sort.Direction.DESC) Pageable pageable
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "latest") String order
     ) {
-        Page<PostResponse> results = boardService.getAllBoards(pageable);
+        Page<PostResponse> results = boardService.getAllBoards(page, size, order);
         return ResponseEntity.ok(ApiResponse.ok(results)); // 200 OK with 글 데이터들
     }
 
     @GetMapping("/home")
     public ResponseEntity<ApiResponse<BoardListResponse>> getBoardHome(
-            @PageableDefault(sort = {"createdDatetime", "id"}, direction = Sort.Direction.DESC) Pageable pageable
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "latest") String order
     ) {
-        return ResponseEntity.ok(ApiResponse.ok(boardService.getBoardHome(pageable)));
+        return ResponseEntity.ok(ApiResponse.ok(boardService.getBoardHome(page, size, order)));
     }
 
     @GetMapping("/{id}")
