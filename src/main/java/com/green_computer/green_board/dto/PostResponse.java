@@ -16,6 +16,7 @@ public class PostResponse {
     private String author;
     private int hits;
     private int likeCount;
+    private Boolean isLikedByMe;
     private LocalDateTime createdDatetime;
     private LocalDateTime updatedDatetime;
 }

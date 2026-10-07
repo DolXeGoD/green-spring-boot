@@ -130,6 +130,7 @@ public class UserService {
                         like.getBoard().getId(), like.getBoard().getTitle(),
                         like.getBoard().getContent(), like.getBoard().getAuthor().getName(),
                         like.getBoard().getHits(), like.getBoard().getLikeCount(),
+                        true,
                         like.getBoard().getCreatedDatetime(), like.getBoard().getUpdatedDatetime()
                 ));
             }

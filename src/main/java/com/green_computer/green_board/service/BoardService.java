@@ -73,6 +73,9 @@ public class BoardService {
 
     private Page<PostResponse> getBoardPage(BoardType type, Pageable pageable) {
         Page<Board> boardPage = boardRepository.findByIsDeletedFalseAndType(type, pageable);
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByUsername(username);
+        List<Integer> likedBoardIds = likeRepository.findLikedBoardIdsByUserId(user.getId());
         List<PostResponse> responses = new ArrayList<>();
 
         for (Board board : boardPage.getContent()) {
@@ -83,6 +86,7 @@ public class BoardService {
                     board.getAuthor().getName(),
                     board.getHits(),
                     board.getLikeCount(),
+                    likedBoardIds.contains(board.getId()),
                     board.getCreatedDatetime(),
                     board.getUpdatedDatetime()
             ));
@@ -113,6 +117,10 @@ public class BoardService {
         board.setHits(board.getHits() + 1); // 조회수 1 늘리기
         boardRepository.saveAndFlush(board); // 수정일도 갱신된 뒤에 응답을 만든다.
 
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByUsername(username);
+        boolean isLikedByMe = likeRepository.findByUserIdAndBoardId(user.getId(), board.getId()).isPresent();
+
         // DTO 만들어서, DTO를 응답해야된다.
         return new PostResponse(
                 board.getId(),
@@ -121,6 +129,7 @@ public class BoardService {
                 writerName,
                 board.getHits(),
                 board.getLikeCount(),
+                isLikedByMe,
                 board.getCreatedDatetime(),
                 board.getUpdatedDatetime()
         );
@@ -202,12 +211,12 @@ public class BoardService {
 
     @Transactional(readOnly = true)
     public List<PostResponse> getMyPosts() {
-
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByUsername(username);
         List<Board> results = boardRepository.findByAuthorAndIsDeletedFalseOrderByCreatedDatetimeDescIdDesc(
-                userRepository.findByUsername(
-                        SecurityContextHolder.getContext().getAuthentication().getName()
-                )
+                user
         );
+        List<Integer> likedBoardIds = likeRepository.findLikedBoardIdsByUserId(user.getId());
 
         // 새로운 결과 전용 상자 제작
         List<PostResponse> response = new ArrayList<>();
@@ -221,6 +230,7 @@ public class BoardService {
                     board.getAuthor().getName(),
                     board.getHits(),
                     board.getLikeCount(),
+                    likedBoardIds.contains(board.getId()),
                     board.getCreatedDatetime(),
                     board.getUpdatedDatetime()
             );
@@ -260,6 +270,9 @@ public class BoardService {
     public List<PostResponse> search(String keyword) {
         // 검색 -> SQL을 실행
         List<Board> results = boardRepository.searchByTitle(keyword);
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        User user = userRepository.findByUsername(username);
+        List<Integer> likedBoardIds = likeRepository.findLikedBoardIdsByUserId(user.getId());
 
         // 새로운 결과 전용 상자 제작
         List<PostResponse> response = new ArrayList<>();
@@ -273,6 +286,7 @@ public class BoardService {
                     board.getAuthor().getName(),
                     board.getHits(),
                     board.getLikeCount(),
+                    likedBoardIds.contains(board.getId()),
                     board.getCreatedDatetime(),
                     board.getUpdatedDatetime()
             );
